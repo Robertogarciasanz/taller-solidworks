@@ -1,0 +1,8 @@
+customtkinter
+pywin32
+oletools
+olefile
+shapely
+pypdf
+pymupdf
+pyinstaller
