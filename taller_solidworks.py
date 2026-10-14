@@ -107,6 +107,7 @@ class Taller(ctk.CTk):
         self._boton_lateral(lat, "🔍  STL → macro .swp…", self.t_analizar)
         self._boton_lateral(lat, "📐  Plano PDF → código VBA…", self.plano_pdf)
         self._boton_lateral(lat, "🔢  Cotas del PDF → editor VBA…", self.cotas_pdf)
+        self._boton_lateral(lat, "📄  Generar planos automáticos…", self.t_generar_planos)
 
         self._seccion(lat, "Macros")
         self._boton_lateral(lat, "➕  Añadir macros…", self.anadir)
@@ -467,6 +468,18 @@ class Taller(ctk.CTk):
         c = filedialog.askdirectory(title="Carpeta donde borrar los temporales ~$")
         if c:
             self.tarea("limpiar_temporales", os.path.normpath(c))
+
+    def t_generar_planos(self):
+        ensamblaje = filedialog.askopenfilename(
+            title="Selecciona el ensamblaje (.SLDASM)",
+            filetypes=[("Ensamblaje SolidWorks", "*.sldasm"), ("Todos", "*.*")],
+            initialdir=os.path.expanduser("~/OneDrive/Escritorio/diseños 3d/Bicicleta_final")
+        )
+        if not ensamblaje:
+            return
+        carpeta = filedialog.askdirectory(title="Carpeta donde guardar los planos PDF")
+        if carpeta:
+            self.tarea("generar_planos_bicicleta", os.path.normpath(ensamblaje), os.path.normpath(carpeta))
 
     # ------------------------------------------------------------ plano PDF -> VBA
     def tarea_funcion(self, nombre, fn, *args):

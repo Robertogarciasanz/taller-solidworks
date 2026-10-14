@@ -9,9 +9,21 @@ import shutil
 import struct
 import zipfile
 
-import pythoncom
-import win32com.client as w
-import win32com.client.dynamic as dyn
+# Lazy imports para evitar problemas con PyInstaller y módulos COM
+pythoncom = None
+w = None
+dyn = None
+
+def _ensure_com():
+    global pythoncom, w, dyn
+    if pythoncom is None:
+        import pythoncom as pc
+        import win32com.client as w_temp
+        import win32com.client.dynamic as dyn_temp
+        pythoncom = pc
+        w = w_temp
+        dyn = dyn_temp
+    return pythoncom, w, dyn
 
 
 def val(obj, name, *args):
@@ -27,7 +39,8 @@ def val(obj, name, *args):
 def _sw():
     # Enlace tardio puro: GetActiveObject devuelve una clase de makepy (si existe en la cache) y esa
     # no acepta los VARIANT por referencia ("int() argument must be ... not 'VARIANT'").
-    return dyn.Dispatch("SldWorks.Application")
+    _, _, dyn_mod = _ensure_com()
+    return dyn_mod.Dispatch("SldWorks.Application")
 
 
 def _docs(sw):
@@ -38,7 +51,8 @@ def _docs(sw):
 
 
 def _byref():
-    return w.VARIANT(pythoncom.VT_BYREF | pythoncom.VT_I4, 0)
+    pc, w_mod, _ = _ensure_com()
+    return w_mod.VARIANT(pc.VT_BYREF | pc.VT_I4, 0)
 
 
 # ------------------------------------------------------------------ estado y guardado
@@ -309,3 +323,53 @@ def conexion():
         return True, f"SolidWorks conectado  |  {n} documentos  |  activo: {nombre}"
     except Exception:
         return True, "SolidWorks conectado"
+
+
+# ------------------------------------------------------------------ generación de planos
+def generar_planos_bicicleta(ensamblaje, carpeta_destino):
+    """Genera PDF de cada pieza del ensamblaje."""
+    import time
+    sw = _sw()
+    e = _byref()
+    print(f"Leyendo: {os.path.basename(ensamblaje)}")
+    doc = sw.OpenDoc6(ensamblaje, 2, 0, "", e)
+    if doc is None:
+        print(f"✗ Error ({e.value})")
+        return
+
+    os.makedirs(carpeta_destino, exist_ok=True)
+    componentes = doc.GetComponents(False)
+    piezas = {}
+    for comp in componentes:
+        p = val(comp, "GetPathName")
+        if p and os.path.exists(p):
+            n = os.path.splitext(os.path.basename(p))[0]
+            if n not in piezas:
+                piezas[n] = p
+
+    print(f"Encontradas {len(piezas)} piezas. Exportando a PDF...")
+    ok = 0
+    for i, (n, r) in enumerate(sorted(piezas.items()), 1):
+        print(f"[{i}/{len(piezas)}] {n}...", end=" ", flush=True)
+        try:
+            ep = _byref()
+            p = sw.OpenDoc6(r, 1, 0, "", ep)
+            if p is None:
+                print("✗")
+                continue
+            time.sleep(0.5)
+            pdf = os.path.join(carpeta_destino, f"{n}.pdf")
+            es = _byref()
+            res = p.SaveAs4(pdf, 29, 1, es)
+            if res or os.path.exists(pdf):
+                print("✓")
+                ok += 1
+            else:
+                print("✗")
+            sw.CloseDoc(p.GetTitle())
+            time.sleep(0.2)
+        except:
+            print("✗")
+
+    sw.CloseDoc(doc.GetTitle())
+    print(f"\n✓ {ok}/{len(piezas)} PDFs: {carpeta_destino}")

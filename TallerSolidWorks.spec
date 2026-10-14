@@ -1,9 +1,25 @@
 # -*- mode: python ; coding: utf-8 -*-
-from PyInstaller.utils.hooks import collect_all
+from PyInstaller.utils.hooks import collect_all, collect_data_files, get_module_file_attribute
+import os
 
 datas = [('plantilla_macro.swp', '.')]
 binaries = []
-hiddenimports = ['pythoncom', 'win32com.client', 'win32com.client.dynamic', 'win32gui', 'win32process', 'win32con', 'pdfcotas', 'pdfgeo', 'pdf2vba', 'tareas', 'sw', 'swp_escribir', 'stl_vba', 'stl_a_macro', 'olefile']
+hiddenimports = [
+    # pywin32 and COM
+    'pythoncom', 'pywin32', 'win32', 'win32api', 'win32con', 'win32com', 'win32com.client',
+    'win32com.client.dynamic', 'win32com.server', 'win32gui', 'win32process', 'pywintypes',
+    # custom modules
+    'customtkinter', 'darkdetect',
+    'pdfcotas', 'pdfgeo', 'pdf2vba', 'tareas', 'sw', 'swp_escribir', 'stl_vba', 'stl_a_macro',
+    'olefile', 'pdfplumber', 'pypdf', 'shapely', 'oletools',
+]
+
+# customtkinter with data files
+ctk_path = get_module_file_attribute('customtkinter')
+if ctk_path:
+    ctk_root = os.path.dirname(ctk_path)
+    datas.append((os.path.join(ctk_root, 'assets'), 'customtkinter/assets'))
+
 tmp_ret = collect_all('customtkinter')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 tmp_ret = collect_all('oletools')
