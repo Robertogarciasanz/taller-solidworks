@@ -313,7 +313,16 @@ def conexion():
                                 creationflags=0x08000000).stdout.lower()
         if "sldworks" not in salida:
             return False, "SolidWorks cerrado"
-        sw = _sw()
+        pc, _, dyn_mod = _ensure_com()
+        try:
+            sw = dyn_mod.Dispatch(pc.GetActiveObject("SldWorks.Application").QueryInterface(pc.IID_IDispatch))
+        except pc.com_error:
+            # abierto por COM no aparece como activo; Dispatch arrancaria uno nuevo si se esta cerrando
+            import time
+            time.sleep(1)
+            if not _sw_abierto():
+                return False, "SolidWorks cerrado"
+            sw = _sw()
     except Exception:
         return False, "SolidWorks no responde"
     try:
