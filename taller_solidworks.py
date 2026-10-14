@@ -468,19 +468,19 @@ class Taller(ctk.CTk):
         import tareas
         conectado, _ = tareas.conexion()
         if not conectado:
-            self.registro("SolidWorks no conectado. Abre un proyecto primero.")
+            print("SolidWorks no conectado. Abre un proyecto primero.")
             return
         try:
             sw = tareas._sw()
             doc = tareas.val(sw, "ActiveDoc")
             if doc is None:
-                self.registro("Ningún documento abierto. Abre un proyecto primero.")
+                print("Ningún documento abierto. Abre un proyecto primero.")
                 return
             ruta = tareas.val(doc, "GetPathName")
             carpeta = os.path.dirname(ruta)
             self.tarea("limpiar_temporales", os.path.normpath(carpeta))
         except Exception as e:
-            self.registro(f"Error: {e}")
+            print(f"Error: {e}")
 
     def t_generar_planos(self):
         ensamblaje = filedialog.askopenfilename(
