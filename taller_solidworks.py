@@ -465,9 +465,22 @@ class Taller(ctk.CTk):
         self.tarea("convertir_a_swp", p)
 
     def t_limpiar(self):
-        c = filedialog.askdirectory(title="Carpeta donde borrar los temporales ~$")
-        if c:
-            self.tarea("limpiar_temporales", os.path.normpath(c))
+        import tareas
+        conectado, _ = tareas.conexion()
+        if not conectado:
+            self.registro("SolidWorks no conectado. Abre un proyecto primero.")
+            return
+        try:
+            sw = tareas._sw()
+            doc = tareas.val(sw, "ActiveDoc")
+            if doc is None:
+                self.registro("Ningún documento abierto. Abre un proyecto primero.")
+                return
+            ruta = tareas.val(doc, "GetPathName")
+            carpeta = os.path.dirname(ruta)
+            self.tarea("limpiar_temporales", os.path.normpath(carpeta))
+        except Exception as e:
+            self.registro(f"Error: {e}")
 
     def t_generar_planos(self):
         ensamblaje = filedialog.askopenfilename(
