@@ -332,7 +332,7 @@ def generar_planos_bicicleta(ensamblaje, carpeta_destino):
     sw = _sw()
     e = _byref()
     print(f"Leyendo: {os.path.basename(ensamblaje)}")
-    doc = sw.OpenDoc6(ensamblaje, 2, 0, "", e)
+    doc = sw.OpenDoc6(ensamblaje, 2, 0, None, e)
     if doc is None:
         print(f"✗ Error ({e.value})")
         return
@@ -353,7 +353,7 @@ def generar_planos_bicicleta(ensamblaje, carpeta_destino):
         print(f"[{i}/{len(piezas)}] {n}...", end=" ", flush=True)
         try:
             ep = _byref()
-            p = sw.OpenDoc6(r, 1, 0, "", ep)
+            p = sw.OpenDoc6(r, 1, 0, None, ep)
             if p is None:
                 print("✗")
                 continue
