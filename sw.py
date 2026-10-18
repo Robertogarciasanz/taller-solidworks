@@ -258,23 +258,33 @@ def set_suppress(names, suppress):
 
 def cmd_front():
     """Trae al frente la ventana de SolidWorks ya abierta (sin lanzar otra instancia)."""
-    import win32gui, win32con, win32process, subprocess
+    import win32api, win32gui, win32con, win32process
     pids = {int(l.split('","')[1]) for l in sw_instances()}
     found = []
 
     def cb(h, _):
-        if win32gui.IsWindowVisible(h) and "SOLIDWORKS" in win32gui.GetWindowText(h):
+        if win32gui.IsWindowVisible(h) and win32gui.GetWindowText(h).startswith("SOLIDWORKS"):
             if win32process.GetWindowThreadProcessId(h)[1] in pids:
                 found.append(h)
     win32gui.EnumWindows(cb, None)
     if not found:
-        sys.exit("No hay ventana de SolidWorks visible.")
-    win32gui.ShowWindow(found[0], win32con.SW_MAXIMIZE)
-    try:
-        win32gui.SetForegroundWindow(found[0])
-    except Exception:
-        pass
-    print("Ventana al frente:", win32gui.GetWindowText(found[0]))
+        sys.exit("SolidWorks no esta abierto (no hay ventana suya).")
+    h = found[0]
+    if win32gui.IsIconic(h):
+        win32gui.ShowWindow(h, win32con.SW_RESTORE)
+    # Windows no deja pasar otra ventana al frente desde un programa que no es el activo:
+    # se engancha la entrada a la ventana activa mientras se cambia.
+    import ctypes
+    u = ctypes.windll.user32
+    hilo_activo = win32process.GetWindowThreadProcessId(win32gui.GetForegroundWindow())[0]
+    este = win32api.GetCurrentThreadId()
+    u.AttachThreadInput(este, hilo_activo, True)
+    u.BringWindowToTop(h)
+    u.SetForegroundWindow(h)
+    u.AttachThreadInput(este, hilo_activo, False)
+    if win32gui.GetForegroundWindow() != h:
+        sys.exit("Windows no ha dejado traer SolidWorks al frente: pulsa su icono en la barra de tareas.")
+    print("Ventana al frente:", win32gui.GetWindowText(h))
 
 
 def cmd_view(name="iso"):

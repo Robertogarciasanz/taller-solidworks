@@ -93,6 +93,12 @@ class Taller(ctk.CTk):
                      anchor="w").pack(fill="x", padx=18, pady=(16, 0))
         ctk.CTkLabel(lat, text="macros, copias y conversiones", text_color=GRIS, anchor="w").pack(fill="x", padx=18)
 
+        self._seccion(lat, "Gemini")
+        self._boton_lateral(lat, "📄→🧱  Plano PDF → pieza…", self.g_pdf_a_pieza)
+        self._boton_lateral(lat, "🧱→📄  Pieza activa → plano PDF…", self.g_pieza_a_plano)
+        self._boton_lateral(lat, "📚  Planos de una carpeta…", self.g_planos_carpeta)
+        self._boton_lateral(lat, "🤖  Leer cotas con Gemini…", self.plano_gemini)
+
         self._seccion(lat, "Documentos")
         self._boton_lateral(lat, "📋  Estado de documentos", lambda: self.tarea("estado"))
         self._boton_lateral(lat, "💾  Guardar todo", lambda: self.tarea("guardar_todo"))
@@ -103,11 +109,8 @@ class Taller(ctk.CTk):
         self._boton_lateral(lat, "📦  Conjunto activo → carpeta nueva…", self.t_conjunto)
         self._boton_lateral(lat, "🧹  Limpiar temporales ~$…", self.t_limpiar)
 
-        self._seccion(lat, "Mallas y planos")
+        self._seccion(lat, "Mallas")
         self._boton_lateral(lat, "🔍  STL → macro .swp…", self.t_analizar)
-        self._boton_lateral(lat, "📐  Plano PDF → código VBA…", self.plano_pdf)
-        self._boton_lateral(lat, "🔢  Cotas del PDF → editor VBA…", self.cotas_pdf)
-        self._boton_lateral(lat, "📄  Generar planos automáticos…", self.t_generar_planos)
 
         self._seccion(lat, "Macros")
         self._boton_lateral(lat, "➕  Añadir macros…", self.anadir)
@@ -537,6 +540,82 @@ class Taller(ctk.CTk):
         if cotas:
             self.escribe(f"{len(cotas)} cotas leídas de {os.path.basename(p)}: revísalas y pásalas al editor.", "ok")
             TablaCotas(self, cotas, p)
+
+    # ------------------------------------------------------------ Gemini: PDF -> pieza -> plano
+    def g_pdf_a_pieza(self):
+        p = filedialog.askopenfilename(title="Plano (PDF o foto acotada) para modelar en SolidWorks", filetypes=[
+            ("Planos e imágenes", "*.pdf *.png *.jpg *.jpeg *.webp"), ("Todos", "*.*")])
+        if not p:
+            return
+        p = os.path.normpath(p)
+
+        def hacer():
+            import plano_a_macro
+            plano_a_macro.crear(p)
+        self.escribe(f"▶ Plano → pieza: {os.path.basename(p)}  (Gemini lee el plano y SolidWorks modela; "
+                     "deja junto al plano la receta y la macro)", "tarea")
+        self.tarea_funcion("plano_a_pieza", hacer)
+
+    def g_pieza_a_plano(self):
+        import tareas
+        conectado, _ = tareas.conexion()
+        if not conectado:
+            self.escribe("SolidWorks no está abierto: abre la pieza primero.", "error")
+            return
+        c = filedialog.askdirectory(title="Carpeta donde guardar la pieza y su plano (se crea /planos dentro)")
+        if not c:
+            return
+        orig = filedialog.askopenfilename(title="Plano original para imitar (opcional: Cancelar si no hay)",
+                                          filetypes=[("PDF", "*.pdf")])
+
+        def hacer():
+            import planos_gemini
+            planos_gemini.hacer_plano(os.path.normpath(c), os.path.normpath(orig) if orig else None)
+        self.escribe("▶ Pieza activa → plano A4 (Gemini elige y coloca las cotas)", "tarea")
+        self.tarea_funcion("pieza_a_plano", hacer)
+
+    def g_planos_carpeta(self):
+        c = filedialog.askdirectory(title="Carpeta con las piezas (.SLDPRT): se trabaja sobre una copia")
+        if not c:
+            return
+
+        def hacer():
+            import planos_gemini
+            planos_gemini.planos_carpeta(os.path.normpath(c))
+        self.escribe(f"▶ Planos de {os.path.basename(c)}: sencillas de dos en dos, complejas una por hoja "
+                     "(puede tardar varios minutos)", "tarea")
+        self.tarea_funcion("planos_carpeta", hacer)
+
+    def plano_gemini(self):
+        p = filedialog.askopenfilename(title="Plano o foto acotada para Gemini", filetypes=[
+            ("Planos e imágenes", "*.pdf *.png *.jpg *.jpeg *.webp"), ("Todos", "*.*")])
+        if not p:
+            return
+        p = os.path.normpath(p)
+        res = {}
+
+        def leer():
+            import gemini_plano
+            print(f"Enviando {os.path.basename(p)} a Gemini ({gemini_plano.MODELO})…")
+            res["cotas"], res["datos"] = gemini_plano.leer_plano(p)
+
+        def mostrar():
+            datos, cotas = res["datos"], res["cotas"]
+            info = [datos.get("pieza"), datos.get("material"),
+                    f"espesor {datos['espesor_mm']:g} mm" if datos.get("espesor_mm") else None]
+            self.escribe(" · ".join(str(x) for x in info if x), "ok")
+            for o in datos.get("operaciones_sugeridas") or []:
+                self.escribe("   • " + o)
+            if cotas:
+                self.escribe(f"{len(cotas)} cotas leídas por Gemini: revísalas y pásalas al editor "
+                             f"(JSON guardado como {os.path.splitext(os.path.basename(p))[0]}_gemini.json).", "ok")
+                TablaCotas(self, cotas, p)
+            else:
+                self.escribe("Gemini no ha encontrado cotas en ese plano.", "error")
+
+        self.escribe(f"▶ Leer plano con Gemini {os.path.basename(p)}  (en curso…)", "tarea")
+        self.al_terminar["leer_plano_gemini"] = mostrar
+        self.tarea_funcion("leer_plano_gemini", leer)
 
 
 class AsistentePlano(ctk.CTkToplevel):

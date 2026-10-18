@@ -1,0 +1,203 @@
+{
+ "pieza": "Brazo de engranaje (receta de referencia)",
+ "notas": "Origen en el cubo Ø28,5. Colisón curvo R60 de 0° a 40°.",
+ "variables": [
+  {
+   "nombre": "alma",
+   "valor": 10
+  },
+  {
+   "nombre": "cubos",
+   "valor": 20
+  }
+ ],
+ "operaciones": [
+  {
+   "op": "saliente",
+   "nombre": "Alma",
+   "forma": "contorno",
+   "eje": "z",
+   "desde": 0,
+   "hasta": 10,
+   "circulos": [
+    {
+     "c": [
+      -88,
+      0
+     ],
+     "r": 22,
+     "union": "tangente"
+    },
+    {
+     "c": [
+      0,
+      0
+     ],
+     "r": 35,
+     "union": "arco",
+     "R": 16
+    },
+    {
+     "c": [
+      60,
+      0
+     ],
+     "r": 22,
+     "union": "arco_centro",
+     "centro": [
+      0,
+      0
+     ]
+    },
+    {
+     "c": [
+      45.96,
+      38.57
+     ],
+     "r": 22,
+     "union": "arco",
+     "R": 16
+    },
+    {
+     "c": [
+      -19,
+      48
+     ],
+     "r": 20,
+     "union": "arco",
+     "R": 44
+    },
+    {
+     "c": [
+      -63,
+      0
+     ],
+     "r": 22,
+     "union": "tangente"
+    }
+   ]
+  },
+  {
+   "op": "saliente",
+   "nombre": "Cubo",
+   "forma": "cilindro",
+   "eje": "z",
+   "centro": [
+    0,
+    0
+   ],
+   "d": 44,
+   "desde": 0,
+   "hasta": 20
+  },
+  {
+   "op": "saliente",
+   "nombre": "Saliente",
+   "forma": "cilindro",
+   "eje": "z",
+   "centro": [
+    -19,
+    48
+   ],
+   "d": 40,
+   "desde": 0,
+   "hasta": 20
+  },
+  {
+   "op": "saliente",
+   "nombre": "Lobulo_izq",
+   "forma": "ranura",
+   "eje": "z",
+   "centros": [
+    [
+     -88,
+     0
+    ],
+    [
+     -63,
+     0
+    ]
+   ],
+   "ancho": 44,
+   "desde": 0,
+   "hasta": 20
+  },
+  {
+   "op": "saliente",
+   "nombre": "Lobulo_dcho",
+   "forma": "ranura_arco",
+   "eje": "z",
+   "centro": [
+    0,
+    0
+   ],
+   "radio": 60,
+   "ancho": 44,
+   "angulo_inicio": 0,
+   "angulo_fin": 40,
+   "desde": 0,
+   "hasta": 20
+  },
+  {
+   "op": "corte",
+   "nombre": "Taladro_cubo",
+   "forma": "cilindro",
+   "eje": "z",
+   "centro": [
+    0,
+    0
+   ],
+   "d": 28.5,
+   "desde": -1,
+   "hasta": 21
+  },
+  {
+   "op": "corte",
+   "nombre": "Taladro_saliente",
+   "forma": "cilindro",
+   "eje": "z",
+   "centro": [
+    -19,
+    48
+   ],
+   "d": 19,
+   "desde": -1,
+   "hasta": 21
+  },
+  {
+   "op": "corte",
+   "nombre": "Ranura_izq",
+   "forma": "ranura",
+   "eje": "z",
+   "centros": [
+    [
+     -88,
+     0
+    ],
+    [
+     -63,
+     0
+    ]
+   ],
+   "ancho": 22,
+   "desde": -1,
+   "hasta": 21
+  },
+  {
+   "op": "corte",
+   "nombre": "Ranura_curva",
+   "forma": "ranura_arco",
+   "eje": "z",
+   "centro": [
+    0,
+    0
+   ],
+   "radio": 60,
+   "ancho": 22,
+   "angulo_inicio": 0,
+   "angulo_fin": 40,
+   "desde": -1,
+   "hasta": 21
+  }
+ ]
+}

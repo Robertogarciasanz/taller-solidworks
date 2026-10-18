@@ -2,7 +2,7 @@
 from PyInstaller.utils.hooks import collect_all, collect_data_files, get_module_file_attribute
 import os
 
-datas = [('plantilla_macro.swp', '.')]
+datas = [('plantilla_macro.swp', '.'), ('biblioteca_sw.bas', '.'), ('ejemplos', 'ejemplos')]
 binaries = []
 hiddenimports = [
     # pywin32 and COM
@@ -10,7 +10,8 @@ hiddenimports = [
     'win32com.client.dynamic', 'win32com.server', 'win32gui', 'win32process', 'pywintypes',
     # custom modules
     'customtkinter', 'darkdetect',
-    'pdfcotas', 'pdfgeo', 'pdf2vba', 'tareas', 'sw', 'swp_escribir', 'stl_vba', 'stl_a_macro',
+    'pdfcotas', 'pdfgeo', 'pdf2vba', 'tareas', 'sw', 'swp_escribir', 'stl_vba', 'stl_a_macro', 'gemini_plano',
+    'plano_a_macro', 'planos_gemini', 'PIL', 'PIL.Image',
     'olefile', 'pdfplumber', 'pypdf', 'shapely', 'oletools',
 ]
 
@@ -29,6 +30,8 @@ datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 tmp_ret = collect_all('pymupdf')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 tmp_ret = collect_all('shapely')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+tmp_ret = collect_all('google.genai')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
 
