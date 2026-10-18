@@ -70,13 +70,16 @@ def acercar_a_su_vista(drw, margen=0.015):
             continue
         dd = v.GetFirstDisplayDimension5
         while dd is not None:
-            a = dd.GetAnnotation
-            x, y, z = a.GetPosition
-            nx = min(max(x, x0 - margen), x1 + margen)
-            ny = min(max(y, y0 - margen), y1 + margen)
-            if abs(nx - x) > 1e-4 or abs(ny - y) > 1e-4:
-                a.SetPosition2(nx, ny, z)
-                n += 1
+            try:   # algunas cotas no exponen su posicion por COM (fallo en la rueda trasera): se saltan
+                a = dd.GetAnnotation
+                x, y, z = a.GetPosition
+                nx = min(max(x, x0 - margen), x1 + margen)
+                ny = min(max(y, y0 - margen), y1 + margen)
+                if abs(nx - x) > 1e-4 or abs(ny - y) > 1e-4:
+                    a.SetPosition2(nx, ny, z)
+                    n += 1
+            except Exception:
+                pass
             dd = dd.GetNext5
         v = v.GetNextView
     if n:

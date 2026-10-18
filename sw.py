@@ -278,10 +278,13 @@ def cmd_front():
     u = ctypes.windll.user32
     hilo_activo = win32process.GetWindowThreadProcessId(win32gui.GetForegroundWindow())[0]
     este = win32api.GetCurrentThreadId()
-    u.AttachThreadInput(este, hilo_activo, True)
-    u.BringWindowToTop(h)
-    u.SetForegroundWindow(h)
-    u.AttachThreadInput(este, hilo_activo, False)
+    unido = bool(u.AttachThreadInput(este, hilo_activo, True))
+    try:
+        u.BringWindowToTop(h)
+        u.SetForegroundWindow(h)
+    finally:   # separar SIEMPRE: si la entrada queda unida, el raton y el teclado dejan de ir bien
+        if unido:
+            u.AttachThreadInput(este, hilo_activo, False)
     if win32gui.GetForegroundWindow() != h:
         sys.exit("Windows no ha dejado traer SolidWorks al frente: pulsa su icono en la barra de tareas.")
     print("Ventana al frente:", win32gui.GetWindowText(h))

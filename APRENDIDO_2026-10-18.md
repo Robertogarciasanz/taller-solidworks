@@ -123,8 +123,10 @@ y de la **pieza a un plano A4 en PDF**, además de un **servidor MCP** para mane
 
 ## 9. Pendiente (para retomar)
 
-1. Ver el resultado de la **prueba de ida y vuelta del brazo** (`scratchpad\pruebas\ida_vuelta_brazo\resultado.json`)
-   y hacer la 2.ª prueba con una pieza de la bici sin receta (rodamiento: 3,619 cm³).
+1. ✅ **Ida y vuelta del brazo APROBADA**: pieza → PDF (con receta incrustada) → pieza = 155,110 cm³ y
+   192 × 103 × 20 mm, 0,00 % de diferencia. Falta la 2.ª prueba con una pieza de la bici sin receta
+   (rodamiento: 3,619 cm³). La rueda trasera falló al regenerarse (cota sin `GetPosition` en
+   `acercar_a_su_vista`: falta un try) y quedó con dos cortes (376 y 334 mm).
 2. Rueda trasera: comprobar la sección corregida (profundidad = radio real) y llevar las cotas de los **piñones**
    a la sección.
 3. Recetas verificadas para las piezas de la bici (Gemini + medidas exactas → construir → si el volumen cuadra,
