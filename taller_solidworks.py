@@ -91,31 +91,16 @@ class Taller(ctk.CTk):
         lat.grid(row=0, column=0, sticky="nsw")
         ctk.CTkLabel(lat, text="Taller SolidWorks", font=ctk.CTkFont(size=22, weight="bold"),
                      anchor="w").pack(fill="x", padx=18, pady=(16, 0))
-        ctk.CTkLabel(lat, text="macros, copias y conversiones", text_color=GRIS, anchor="w").pack(fill="x", padx=18)
+        ctk.CTkLabel(lat, text="plano PDF ⇄ pieza de SolidWorks", text_color=GRIS, anchor="w").pack(fill="x", padx=18)
 
-        self._seccion(lat, "Gemini")
-        self._boton_lateral(lat, "📄→🧱  Plano PDF → pieza…", self.g_pdf_a_pieza)
-        self._boton_lateral(lat, "🧱→📄  Pieza activa → plano PDF…", self.g_pieza_a_plano)
+        # Solo las dos direcciones que interesan (el resto de botones se quito por no ser util; el codigo sigue
+        # en este archivo: t_respaldo, t_conjunto, t_limpiar, t_analizar, anadir, nuevo, a_swp, plano_gemini...)
+        self._seccion(lat, "PDF → pieza")
+        self._boton_lateral(lat, "📄  Plano PDF → macro → pieza…", self.g_pdf_a_pieza)
+
+        self._seccion(lat, "Pieza → planos")
+        self._boton_lateral(lat, "📐  Pieza activa → plano PDF…", self.g_pieza_a_plano)
         self._boton_lateral(lat, "📚  Planos de una carpeta…", self.g_planos_carpeta)
-        self._boton_lateral(lat, "🤖  Leer cotas con Gemini…", self.plano_gemini)
-
-        self._seccion(lat, "Documentos")
-        self._boton_lateral(lat, "📋  Estado de documentos", lambda: self.tarea("estado"))
-        self._boton_lateral(lat, "💾  Guardar todo", lambda: self.tarea("guardar_todo"))
-        self._boton_lateral(lat, "🪟  SolidWorks al frente", lambda: self.tarea("traer_al_frente"))
-
-        self._seccion(lat, "Copias")
-        self._boton_lateral(lat, "🗜️  Copia de seguridad (zip)…", self.t_respaldo)
-        self._boton_lateral(lat, "📦  Conjunto activo → carpeta nueva…", self.t_conjunto)
-        self._boton_lateral(lat, "🧹  Limpiar temporales ~$…", self.t_limpiar)
-
-        self._seccion(lat, "Mallas")
-        self._boton_lateral(lat, "🔍  STL → macro .swp…", self.t_analizar)
-
-        self._seccion(lat, "Macros")
-        self._boton_lateral(lat, "➕  Añadir macros…", self.anadir)
-        self._boton_lateral(lat, "📝  Nuevo .bas…", self.nuevo)
-        self._boton_lateral(lat, "⚙️  Convertir .bas a .swp", self.a_swp)
 
     def _principal(self):
         cen = ctk.CTkFrame(self, fg_color="transparent")
@@ -548,12 +533,27 @@ class Taller(ctk.CTk):
         if not p:
             return
         p = os.path.normpath(p)
+        res = {}
 
         def hacer():
             import plano_a_macro
-            plano_a_macro.crear(p)
+            res["swp"] = plano_a_macro.crear(p)
+
+        def mostrar_macro():
+            # la macro generada pasa a «Mis macros» y su codigo al editor (para verla, retocarla y repetirla)
+            swp = res.get("swp")
+            if not swp:
+                return
+            bas = os.path.splitext(p)[0] + "_macro.bas"
+            for ruta in (os.path.normpath(swp), bas):
+                if os.path.exists(ruta):
+                    self._add(ruta)
+            self.ver(bas if os.path.exists(bas) else os.path.normpath(swp))
+            self.escribe(f"Macro en «Mis macros» y en el editor: {os.path.basename(swp)} "
+                         "(también en SolidWorks: Herramientas > Macro > Ejecutar).", "ok")
         self.escribe(f"▶ Plano → pieza: {os.path.basename(p)}  (Gemini lee el plano y SolidWorks modela; "
                      "deja junto al plano la receta y la macro)", "tarea")
+        self.al_terminar["plano_a_pieza"] = mostrar_macro
         self.tarea_funcion("plano_a_pieza", hacer)
 
     def g_pieza_a_plano(self):

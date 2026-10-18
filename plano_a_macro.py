@@ -778,7 +778,32 @@ def _crear_una(ruta, ejecutar=True, misma_receta=False):
         print("3/3 SolidWorks está creando la pieza (puede tardar un minuto)…")
         tareas.ejecutar_macro(swp)
         print(comprobar())
+        comparar_con_pdf(ruta)
     return swp
+
+
+def comparar_con_pdf(ruta):
+    """Si el plano trae las medidas reales incrustadas, dice si la pieza creada COINCIDE (el «OK» de la macro solo
+    significa que se ejecuto sin errores)."""
+    if not ruta.lower().endswith(".pdf"):
+        return None
+    import planos_gemini
+    import tareas
+    reales = planos_gemini.leer_medidas_pdf(ruta)   # (no llamarla 'medidas': taparia la funcion medidas())
+    if not reales:
+        print("    (El plano no trae medidas reales: no se puede comprobar si la pieza coincide.)")
+        return None
+    m = reales[0]
+    d = tareas.val(tareas._sw(), "ActiveDoc")
+    if d is None:
+        return None
+    n, v, tam = medidas(d)
+    dv = (v - m["volumen"]) / m["volumen"] * 100 if m["volumen"] else 100
+    dt = max(abs(a - b) / max(b, 1e-6) * 100 for a, b in zip(sorted(tam), sorted(m["tamano_xyz"])))
+    ok = n == m["solidos"] and abs(dv) < 1 and dt < 1
+    print(f"    {'✔ COINCIDE' if ok else '✖ NO COINCIDE'} con la pieza real {m['pieza']}: volumen {v:.1f} cm³ "
+          f"({dv:+.1f} %), tamaño {sorted(tam)} frente a {sorted(m['tamano_xyz'])} mm, sólidos {n}/{m['solidos']}.")
+    return ok
 
 
 

@@ -123,6 +123,14 @@ y de la **pieza a un plano A4 en PDF**, además de un **servidor MCP** para mane
 
 ## 9. Pendiente (para retomar)
 
+0. **PRIMERO: bucle automático PDF → pieza hasta que COINCIDA.** El usuario probó «Plano PDF → pieza» con
+   Bielas_platos: el PDF antiguo (sin medidas) dio 1 disco + bielas en línea (431 cm³, 25 mm de ancho; la real
+   mide 511,6 cm³ y 414 × 208 × 256). Con el PDF nuevo (medidas incrustadas) salen 2 bielas, pedales y eje, pero
+   con 2 sólidos y 333 cm³. Hacer: construir → `comparar_con_pdf` → devolver a Gemini la diferencia exacta →
+   corregir la receta → repetir (máx. 4) → si COINCIDE, guardar la receta en el JSON del PDF.
+   El Taller ya solo tiene las dos direcciones (PDF → pieza; pieza → planos); la macro generada pasa a
+   «Mis macros» y al editor, y el registro dice COINCIDE / NO COINCIDE.
+
 1. ✅ **Ida y vuelta del brazo APROBADA**: pieza → PDF (con receta incrustada) → pieza = 155,110 cm³ y
    192 × 103 × 20 mm, 0,00 % de diferencia. Falta la 2.ª prueba con una pieza de la bici sin receta
    (rodamiento: 3,619 cm³). La rueda trasera falló al regenerarse (cota sin `GetPosition` en
