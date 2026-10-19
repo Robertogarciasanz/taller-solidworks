@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "nombre": "placa_lateral",
+  "origen": "prueba a mano",
+  "variables": {},
+  "operaciones": [
+    {"tipo": "saliente", "nombre": "Saliente-Extruir1", "plano": "Lateral",
+     "desde": 5, "hasta": 15,
+     "perfiles": [
+       [["L", [0, 0], [100, 0]], ["L", [100, 0], [100, 60]], ["L", [100, 60], [0, 60]], ["L", [0, 60], [0, 0]]],
+       [["C", [25, 30], 8]]
+     ]},
+    {"tipo": "corte", "nombre": "Cortar-Extruir1", "plano": "Lateral",
+     "desde": 5, "hasta": 15, "pasante": true,
+     "perfiles": [
+       [["L", [55, 35], [85, 35]], ["A", [85, 30], [85, 35], [85, 25], -1],
+        ["L", [85, 25], [55, 25]], ["A", [55, 30], [55, 25], [55, 35], -1]]
+     ]}
+  ],
+  "redondeos": []
+}

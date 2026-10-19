@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "nombre": "placa_alzado",
+  "origen": "prueba a mano",
+  "variables": {"espesor": 10},
+  "operaciones": [
+    {"tipo": "saliente", "nombre": "Saliente-Extruir1", "plano": "Alzado",
+     "desde": 0, "hasta": 10,
+     "perfiles": [
+       [["L", [0, 0], [100, 0]], ["L", [100, 0], [100, 60]], ["L", [100, 60], [0, 60]], ["L", [0, 60], [0, 0]]],
+       [["C", [25, 30], 8]]
+     ],
+     "cotas": {"hasta": "espesor"}},
+    {"tipo": "corte", "nombre": "Cortar-Extruir1", "plano": "Alzado",
+     "desde": 0, "hasta": 10, "pasante": true,
+     "perfiles": [
+       [["L", [55, 25], [85, 25]], ["A", [85, 30], [85, 25], [85, 35], 1],
+        ["L", [85, 35], [55, 35]], ["A", [55, 30], [55, 35], [55, 25], 1]]
+     ]}
+  ],
+  "redondeos": []
+}

@@ -45,7 +45,25 @@ Describe la pieza con cajas, cilindros y perfiles (contorno, ranura_arco), en mm
 - equidistancia (la herramienta Equidistanciar entidades): {"forma":"equidistancia","de":"nombre de otra operación",
    "distancia":d,"desde":z0,"hasta":z1}: mismo perfil desplazado d mm hacia fuera. P.ej. el lóbulo alrededor de un
   colisón R11 con borde R22 = equidistancia de 11 del colisón. Úsala siempre que dos contornos sean paralelos.
-- Una caja hueca = saliente exterior + corte interior dejando el espesor de pared y la cara abierta.
+- anillo (aro hueco coaxial: llanta, cubierta, arandela, tubo): {"forma":"anillo","eje":"z|y|x","centro":[c1,c2],
+   "d":diametro_exterior,"d_int":diametro_interior,"desde":s0,"hasta":s1}. Úsalo SIEMPRE para aros: NO hagas un
+   saliente cilindro macizo + corte cilindro, porque el corte se come todo lo que hay dentro (buje, eje...).
+- toro (aro de SECCIÓN REDONDA: cubierta/neumático, junta tórica, asa doblada en círculo):
+   {"forma":"toro","eje":"z","centro":[c1,c2],"d_medio":diametro_medio,"d_seccion":diametro_de_la_seccion,"en":s}
+   (s = posición del plano medio del aro a lo largo del eje). Si el plano acota la cubierta por su diámetro medio y su
+   sección (p.ej. Ø643 y 25), es un toro, NO un anillo rectangular.
+- barra (cilindro o tubo en CUALQUIER dirección, también inclinado): {"forma":"barra","p1":[x,y,z],"p2":[x,y,z],
+   "d":diametro,"d_int":0}. Para radios de rueda, patas de horquilla, tirantes, varillas y cualquier pieza que no vaya
+   paralela a X, Y o Z. Una pieza curva (pata de horquilla con avance) = varias barras seguidas que comparten punto.
+   p1 y p2 son los extremos del eje de la barra; se alarga sola 0,5 mm por cada lado para unirse a lo que toca.
+- matriz_circular (elementos repetidos alrededor de un eje: radios, taladros en corona, dientes, brazos):
+   {"op":"matriz_circular","nombre":"Radios_izq","de":["Radio_izq"],"eje":"z","centro":[c1,c2],"n":16,"angulo":360}
+   Modela UNA copia (saliente o corte) y repítela con la matriz; nunca dibujes las copias una a una.
+   Rueda de bicicleta: eje + buje + pestañas (cilindros), llanta y cubierta (anillos), y los radios: una barra de la
+   pestaña izquierda a la llanta y otra de la derecha, cada una con su matriz circular de n/2 radios; la barra del
+   lado derecho girada medio paso (180/(n/2) grados) para que se alternen. Si el plano no dice cuántos, 32 radios de Ø2.
+- TODA la pieza debe quedar en UN SOLO SÓLIDO: cada saliente tiene que tocar o solaparse (≥ 0,5 mm) con otro.
+  Revisa que lo que va dentro de un aro (buje, piñones) esté unido por radios, nervios o discos.
 - Agujeros pasantes: corte cilindro que sobresalga 1 mm por cada lado.
 - Nada de contactos tangentes: los salientes que se unen deben solaparse al menos 0,5 mm.
 - Redondeos de aristas paralelas a un eje: {"op":"redondeo","eje":"z","r":radio,"puntos":[[x,y],...]}
@@ -53,7 +71,7 @@ Describe la pieza con cajas, cilindros y perfiles (contorno, ranura_arco), en mm
 Devuelve SOLO JSON:
 {"pieza": str, "notas": str,
  "variables": [{"nombre": "largo", "valor": num}],   // solo las 3-6 medidas principales
- "operaciones": [{"op":"saliente|corte|redondeo", "nombre": "Paredes", ...}]}
+ "operaciones": [{"op":"saliente|corte|matriz_circular|redondeo", "nombre": "Paredes", ...}]}
 Usa las cotas del plano; si falta alguna, supón un valor razonable y dilo en "notas".
 Lecciones aprendidas (errores que ya se cometieron):
 - Una cota lineal entre el centro del cubo y el centro del extremo de una ranura FIJA esa coordenada
@@ -216,6 +234,112 @@ Private Function OpAx(ByVal sk As SldWorks.Feature, ByVal esCorte As Boolean, By
     Next
     Set OpAx = Named(f, nm)
 End Function
+
+' ===================== BARRAS INCLINADAS, MATRICES Y SOLIDOS SUELTOS (plano_a_macro) =====================
+' Eje en un croquis 3D (coordenadas de la pieza, mm). Con AddToDB = True los puntos no se enganchan a aristas.
+Private Function Eje3D(ByVal x1 As Double, ByVal y1 As Double, ByVal z1 As Double, ByVal x2 As Double, ByVal y2 As Double, ByVal z2 As Double, ByVal conMedio As Boolean, ByVal nm As String) As SldWorks.Feature
+    Part.ClearSelection2 True
+    Part.SketchManager.AddToDB = True
+    Part.SketchManager.Insert3DSketch True
+    If Part.SketchManager.CreateLine(x1 / 1000, y1 / 1000, z1 / 1000, x2 / 1000, y2 / 1000, z2 / 1000) Is Nothing Then gLog = gLog & "Eje 3D no creado: " & nm & vbCrLf
+    If conMedio Then Part.SketchManager.CreatePoint (x1 + x2) / 2000, (y1 + y2) / 2000, (z1 + z2) / 2000
+    Part.SketchManager.Insert3DSketch True
+    Set Eje3D = Part.FeatureByPositionReverse(0)
+    If Not Eje3D Is Nothing Then Eje3D.Name = nm
+    Part.ClearSelection2 True
+End Function
+
+' Barra (cilindro, o tubo si dInt > 0) de diametro d entre P1 y P2 en cualquier direccion:
+' eje en croquis 3D -> plano perpendicular por el punto medio -> circulo -> extrusion a plano medio
+Private Function BarraF(ByVal x1 As Double, ByVal y1 As Double, ByVal z1 As Double, ByVal x2 As Double, ByVal y2 As Double, ByVal z2 As Double, ByVal d As Double, ByVal dInt As Double, ByVal esCorte As Boolean, ByVal nm As String) As SldWorks.Feature
+    Dim L As Double, e As SldWorks.Feature, pl As SldWorks.Feature, sk As SldWorks.Feature, f As SldWorks.Feature, c As Variant
+    L = Sqr((x2 - x1) ^ 2 + (y2 - y1) ^ 2 + (z2 - z1) ^ 2)
+    If L < 0.001 Then gLog = gLog & "Barra sin longitud: " & nm & vbCrLf: Exit Function
+    Set e = Eje3D(x1, y1, z1, x2, y2, z2, True, "Eje_" & nm)
+    If e Is Nothing Then Exit Function
+    Part.ClearSelection2 True
+    Part.Extension.SelectByID2 "Line1@" & e.Name, "EXTSKETCHSEGMENT", 0, 0, 0, False, 0, Nothing, 0
+    Part.Extension.SelectByID2 "Point3@" & e.Name, "EXTSKETCHPOINT", 0, 0, 0, True, 1, Nothing, 0
+    Set pl = Part.FeatureManager.InsertRefPlane(2, 0, 4, 0, 0, 0)    ' perpendicular a la linea, por el punto
+    If pl Is Nothing Then gLog = gLog & "Plano de barra no creado: " & nm & vbCrLf: Exit Function
+    pl.Name = "Plano_" & nm
+    Part.ClearSelection2 True
+    pl.Select2 False, 0
+    Part.SketchManager.InsertSketch True
+    Set gXf = Part.SketchManager.ActiveSketch.ModelToSketchTransform
+    Set gXi = gXf.Inverse
+    c = ToSk((x1 + x2) / 2, (y1 + y2) / 2, (z1 + z2) / 2)
+    Part.SketchManager.CreateCircleByRadius c(0), c(1), 0, d / 2000
+    If dInt > 0 Then Part.SketchManager.CreateCircleByRadius c(0), c(1), 0, dInt / 2000
+    Set sk = EndSk("Sk_" & nm)
+    Part.ClearSelection2 True
+    sk.Select2 False, 0
+    If esCorte Then
+        Set f = Part.FeatureManager.FeatureCut4(True, False, False, swEndCondMidPlane, 0, L / 1000, 0, False, False, False, False, 0, 0, _
+            False, False, False, False, False, True, True, True, True, False, 0, 0, False, False)
+    Else
+        Set f = Part.FeatureManager.FeatureExtrusion2(True, False, False, swEndCondMidPlane, 0, L / 1000, 0, False, False, False, False, 0, 0, _
+            False, False, False, False, True, True, True, 0, 0, False)
+    End If
+    Part.ClearSelection2 True
+    e.Select2 False, 0: Part.BlankSketch
+    pl.Select2 False, 0: Part.BlankRefGeom
+    Part.ClearSelection2 True
+    Set BarraF = Named(f, nm)
+End Function
+
+' Matriz circular de las operaciones "nombres" (separadas por ;) alrededor del eje que pasa por C con direccion D
+Private Function MatrizCircF(ByVal nombres As String, ByVal cx As Double, ByVal cy As Double, ByVal cz As Double, ByVal dx As Double, ByVal dy As Double, ByVal dz As Double, ByVal n As Integer, ByVal ang As Double, ByVal nm As String) As SldWorks.Feature
+    Dim e As SldWorks.Feature, it() As String, k As Integer, f As SldWorks.Feature, dl As Double, ok As Boolean
+    dl = Sqr(dx * dx + dy * dy + dz * dz)
+    If dl < 0.000001 Or n < 2 Then gLog = gLog & "Matriz sin eje o sin copias: " & nm & vbCrLf: Exit Function
+    dx = dx / dl: dy = dy / dl: dz = dz / dl
+    Set e = Eje3D(cx - dx * 500, cy - dy * 500, cz - dz * 500, cx + dx * 500, cy + dy * 500, cz + dz * 500, False, "Eje_" & nm)
+    If e Is Nothing Then Exit Function
+    Part.ClearSelection2 True
+    Part.Extension.SelectByID2 "Line1@" & e.Name, "EXTSKETCHSEGMENT", 0, 0, 0, False, 1, Nothing, 0
+    it = Split(nombres, ";")
+    Dim fo As SldWorks.Feature
+    For k = 0 To UBound(it)
+        Set fo = Part.FeatureByName(it(k))
+        If fo Is Nothing Then
+            gLog = gLog & "Matriz " & nm & ": no encuentro " & it(k) & vbCrLf
+        Else
+            ok = fo.Select2(True, 4)   ' (en VBA puede devolver False aunque quede seleccionada)
+        End If
+    Next
+    Set f = Part.FeatureManager.FeatureCircularPattern4(n, ang * 3.14159265358979 / 180, False, "NULL", False, True, False)
+    Part.ClearSelection2 True
+    e.Select2 False, 0: Part.BlankSketch
+    Part.ClearSelection2 True
+    Set MatrizCircF = Named(f, nm)
+End Function
+
+' Revolucion completa del croquis sk alrededor de su linea constructiva (toros: cubiertas, juntas toricas)
+Private Function RevolF(ByVal sk As SldWorks.Feature, ByVal esCorte As Boolean, ByVal nm As String) As SldWorks.Feature
+    Dim f As SldWorks.Feature
+    Part.ClearSelection2 True
+    sk.Select2 False, 0
+    Set f = Part.FeatureManager.FeatureRevolve2(True, True, False, esCorte, False, False, 0, 0, 6.28318530717959, 0, _
+        False, False, 0, 0, 0, 0, 0, True, True, True)
+    Part.ClearSelection2 True
+    Set RevolF = Named(f, nm)
+End Function
+
+' Oculta los croquis 3D y planos auxiliares de barras y matrices (ejes de construccion)
+Private Sub OcultarAuxiliares()
+    Dim f As SldWorks.Feature
+    Set f = Part.FirstFeature
+    Do While Not f Is Nothing
+        If f.GetTypeName2 = "3DProfileFeature" And Left(f.Name, 4) = "Eje_" Then
+            Part.ClearSelection2 True: f.Select2 False, 0: Part.BlankSketch
+        ElseIf f.GetTypeName2 = "RefPlane" And Left(f.Name, 6) = "Plano_" Then
+            Part.ClearSelection2 True: f.Select2 False, 0: Part.BlankRefGeom
+        End If
+        Set f = f.GetNextFeature
+    Loop
+    Part.ClearSelection2 True
+End Sub
 '''
 
 
@@ -566,6 +690,14 @@ def _croquis(op, i, holgura=0.0):
         p = {"z": (c1, c2, 0), "y": (c1, 0, c2), "x": (0, c1, c2)}[eje]
         L.append(f"    CircleF {_n(p[0])}, {_n(p[1])}, {_n(p[2])}, {_n(float(op['d']) / 2 + holgura)}, False")
         s0, s1 = sorted((float(op["desde"]), float(op["hasta"])))
+    elif op.get("forma") == "anillo":
+        # aro (llanta, arandela, tubo coaxial): dos circulos concentricos; no hace falta un corte que se coma
+        # lo que haya dentro (buje, eje...)
+        c1, c2 = op.get("centro") or (0, 0)
+        p = {"z": (c1, c2, 0), "y": (c1, 0, c2), "x": (0, c1, c2)}[eje]
+        L.append(f"    CircleF {_n(p[0])}, {_n(p[1])}, {_n(p[2])}, {_n(float(op['d']) / 2 + holgura)}, False")
+        L.append(f"    CircleF {_n(p[0])}, {_n(p[1])}, {_n(p[2])}, {_n(max(float(op['d_int']) / 2 - holgura, 0.01))}, False")
+        s0, s1 = sorted((float(op["desde"]), float(op["hasta"])))
     else:
         rx, ry, rz = (sorted(float(v) for v in op[k]) for k in "xyz")
         a = [rx[0] - holgura, ry[0] - holgura, rz[0] - holgura]
@@ -617,7 +749,7 @@ def a_vba(rec, nombre="Pieza"):
             pass
     L += ["End Sub", "",
           "Sub main()",
-          "    Dim sk As SldWorks.Feature, f As SldWorks.Feature, pts() As Double, np As Integer",
+          "    Dim sk As SldWorks.Feature, f As SldWorks.Feature, pts() As Double, np As Integer, ta As Variant, tb As Variant",
           "    Set swApp = Application.SldWorks",
           "    Set mUtil = swApp.GetMathUtility",
           "    Set Part = swApp.NewDocument(swApp.GetUserPreferenceStringValue(swDefaultTemplatePart), 0, 0, 0)",
@@ -630,12 +762,64 @@ def a_vba(rec, nombre="Pieza"):
           "    Set eqMgr = Part.GetEquationMgr",
           "    FindBase",
           "    Globals"]
+    hechas = {}   # nombre de Gemini -> nombre de la operacion en SolidWorks (para las matrices)
     for i, op in enumerate(ops, 1):
         tipo = op.get("op")
         nm = _nombre(op, i)
+        if op.get("nombre"):
+            hechas[gemini_plano._limpio(op["nombre"])] = nm
         try:
             if tipo == "aviso":
                 L.append(f'    gLog = gLog & "Equidistancia sin referencia: {nm}" & vbCrLf')
+                continue
+            if tipo in ("saliente", "corte") and op.get("forma") == "barra":
+                p1, p2 = [float(v) for v in op["p1"]], [float(v) for v in op["p2"]]
+                d, di = float(op["d"]), float(op.get("d_int") or 0)
+                ext = float(op.get("alargar", 0.5 if tipo == "saliente" else 1))   # que se solape con lo que une
+                L_ = sum((b - a) ** 2 for a, b in zip(p1, p2)) ** 0.5
+                if L_ > 0:
+                    u = [(b - a) / L_ for a, b in zip(p1, p2)]
+                    p1 = [a - ext * k for a, k in zip(p1, u)]
+                    p2 = [b + ext * k for b, k in zip(p2, u)]
+                L += ["", f"    ' --- {tipo} barra: {nm}",
+                      f"    Set f = BarraF({', '.join(_n(v) for v in p1)}, {', '.join(_n(v) for v in p2)}, "
+                      f"{_n(d)}, {_n(di)}, {'True' if tipo == 'corte' else 'False'}, \"{nm}\")"]
+                continue
+            if tipo in ("saliente", "corte") and op.get("forma") == "toro":
+                # circulo de seccion d_seccion a la distancia d_medio/2 del eje, girado 360° (sección redonda)
+                eje = (op.get("eje") or "z").lower()
+                R, r = float(op["d_medio"]) / 2, float(op["d_seccion"]) / 2
+                s = float(op.get("en", 0))
+                c1, c2 = (float(v) for v in (op.get("centro") or (0, 0)))
+                plano, p, a, b = {
+                    "z": ("plTop", (c1 + R, c2, s), (c1, c2, s - 1000), (c1, c2, s + 1000)),
+                    "y": ("plFront", (c1 + R, s, c2), (c1, s - 1000, c2), (c1, s + 1000, c2)),
+                    "x": ("plFront", (s, c1 + R, c2), (s - 1000, c1, c2), (s + 1000, c1, c2))}[eje]
+                L += ["", f"    ' --- {tipo} toro: {nm}", f"    Begin {plano}",
+                      f"    CircleF {', '.join(_n(v) for v in p)}, {_n(r)}, False",
+                      f"    ta = ToSk({', '.join(_n(v) for v in a)}): tb = ToSk({', '.join(_n(v) for v in b)})",
+                      "    Part.SketchManager.CreateCenterLine ta(0), ta(1), 0, tb(0), tb(1), 0",
+                      f'    Set sk = EndSk("Sk_{nm}")',
+                      f'    Set f = RevolF(sk, {"True" if tipo == "corte" else "False"}, "{nm}")']
+                continue
+            if tipo == "matriz_circular":
+                de = op.get("de") or []
+                de = [de] if isinstance(de, str) else de
+                nombres = [hechas.get(gemini_plano._limpio(x)) for x in de]
+                if not de or None in nombres:
+                    L.append(f'    gLog = gLog & "Matriz sin operaciones conocidas: {nm}" & vbCrLf')
+                    continue
+                eje = op.get("eje") or "z"
+                if isinstance(eje, str):
+                    dvec = {"x": (1, 0, 0), "y": (0, 1, 0), "z": (0, 0, 1)}[eje.lower()]
+                else:
+                    dvec = tuple(float(v) for v in eje)
+                c = op.get("centro") or [0, 0, 0]
+                if len(c) == 2:   # centro en los otros dos ejes, como en los cilindros
+                    c = {(0, 0, 1): (c[0], c[1], 0), (0, 1, 0): (c[0], 0, c[1]), (1, 0, 0): (0, c[0], c[1])}.get(dvec, (c[0], c[1], 0))
+                L += ["", f"    ' --- matriz circular: {nm}",
+                      f'    Set f = MatrizCircF("{";".join(nombres)}", {", ".join(_n(v) for v in c)}, '
+                      f'{", ".join(_n(v) for v in dvec)}, {int(op.get("n", 2))}, {_n(op.get("angulo", 360))}, "{nm}")']
                 continue
             if tipo in ("saliente", "corte"):
                 hol = float(op.get("_holgura", 0))
@@ -666,6 +850,7 @@ def a_vba(rec, nombre="Pieza"):
         except (KeyError, TypeError, ValueError, IndexError) as ex:
             L.append(f"    ' operacion {i} ignorada (datos incompletos: {ex})")
     L += ["",
+          "    OcultarAuxiliares",
           "    Part.ClearSelection2 True",
           "    Part.ForceRebuild3 False",
           '    Part.ShowNamedView2 "*Isometric", 7',
@@ -698,7 +883,27 @@ def comprobar():
     txt = f"Pieza: {len(cuerpos)} sólido(s), {vol:.1f} cm³. Operaciones: {', '.join(hechas) or 'ninguna'}."
     if avisos:
         txt += "\nAvisos de la macro: " + str(avisos).replace("\r\n", "; ")
+    if len(cuerpos) > 1:
+        txt += "\n    ⚠ " + solidos_sueltos(d)
     return txt
+
+
+def solidos_sueltos(d):
+    """Texto con los sólidos sueltos de la pieza: qué operaciones forman cada uno y dónde está (mm)."""
+    import tareas
+    cuerpos = d.GetBodies2(0, True) or []
+    partes = []
+    for k, b in enumerate(cuerpos, 1):
+        try:
+            caja = [round(v * 1000, 1) for v in tareas.val(b, "GetBodyBox")]
+            ops = [tareas.val(f, "Name") for f in (tareas.val(b, "GetFeatures") or [])]
+            ops = [o for o in ops if not o.startswith(("Sk_", "Croquis", "Eje_", "Plano_"))]
+        except Exception:
+            caja, ops = [], []
+        donde = (f"x {caja[0]}..{caja[3]}, y {caja[1]}..{caja[4]}, z {caja[2]}..{caja[5]}" if caja else "")
+        partes.append(f"sólido {k} ({', '.join(ops) or '?'}; {donde})")
+    return (f"{len(cuerpos)} SÓLIDOS SUELTOS: una pieza debe ser un solo sólido; estas partes no se tocan: "
+            + " | ".join(partes))
 
 
 def crear(ruta, ejecutar=True, misma_receta=False, rondas=1, original=None):
@@ -716,15 +921,18 @@ def crear(ruta, ejecutar=True, misma_receta=False, rondas=1, original=None):
         if not ejecutar:
             return swp
         extra, igual = "", None
+        doc = __import__("sw").connect().ActiveDoc
+        if doc is not None and len(doc.GetBodies2(0, True) or []) > 1:
+            extra += solidos_sueltos(doc) + ". Haz que se toquen (solape de 0,5 mm) o une con radios/barras lo que falte. "
         if ref:
             n, v, tam = medidas(__import__("sw").connect().ActiveDoc)
             print(f"    Comparación con el original: {v:.1f} cm³ (original {ref[1]:.1f}), tamaño {tam} (original {ref[2]})")
             dv = (v - ref[1]) / ref[1] * 100
-            igual = abs(dv) < 2 and all(abs(a - b) < 1 for a, b in zip(tam, ref[2]))
+            igual = abs(dv) < 2 and all(abs(a - b) < 1 for a, b in zip(tam, ref[2])) and n == ref[0]
             if igual:
                 print("    Coincide con el original (volumen y tamaño).")
                 break
-            extra = (f"La pieza buena mide {ref[1]:.1f} cm3 y {ref[2]} mm; la que ha salido {v:.1f} cm3 ({dv:+.1f} %) "
+            extra += (f"La pieza buena mide {ref[1]:.1f} cm3 y {ref[2]} mm; la que ha salido {v:.1f} cm3 ({dv:+.1f} %) "
                      f"y {tam} mm. NO coincide aunque el contorno se parezca: busca qué elemento está mal colocado "
                      f"o mal girado (ángulos de ranuras, desde dónde parte cada cota) y corrígelo.")
         if ronda == max(rondas, 1):
@@ -733,7 +941,7 @@ def crear(ruta, ejecutar=True, misma_receta=False, rondas=1, original=None):
         ok, dif, nueva = revisar(ruta, json.load(open(base + "_receta.json", encoding="utf-8")), capturas(base), extra)
         for x in dif:
             print("     - " + x)
-        if ok and igual is None:
+        if ok and igual is None and "SUELTOS" not in extra:
             print("    Gemini: la pieza coincide con el plano.")
             break
         with open(base + "_receta.json", "w", encoding="utf-8") as f:
@@ -745,6 +953,22 @@ def crear(ruta, ejecutar=True, misma_receta=False, rondas=1, original=None):
 def _crear_una(ruta, ejecutar=True, misma_receta=False):
     import swp_escribir
     base = os.path.splitext(ruta)[0]
+    if ejecutar and ruta.lower().endswith(".pdf"):   # v2: el PDF trae el arbol completo -> se repite tal cual
+        import planos_gemini
+        con_arbol = [m for m in planos_gemini.leer_medidas_pdf(ruta) if m.get("arbol")]
+        if con_arbol:
+            try:
+                import reconstruir_arbol
+            except ImportError:
+                reconstruir_arbol = None
+            if reconstruir_arbol is not None:
+                for m in con_arbol:
+                    print(f"1/2 El PDF trae el árbol completo de {m['pieza']}: se reconstruye operación a "
+                          "operación (sin Gemini)…")
+                    reconstruir_arbol.construir(m["arbol"], m["pieza"] + "_recuperada")
+                print("2/2 " + comprobar())
+                comparar_con_pdf(ruta)
+                return None
     if misma_receta and os.path.exists(base + "_receta.json"):
         with open(base + "_receta.json", encoding="utf-8") as f:
             rec = json.load(f)

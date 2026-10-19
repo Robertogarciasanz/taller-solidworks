@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "nombre": "caja",
+  "origen": "prueba a mano",
+  "variables": {"alto": 30},
+  "operaciones": [
+    {"tipo": "saliente", "nombre": "Saliente-Extruir1", "plano": "Alzado",
+     "desde": 0, "hasta": 30,
+     "perfiles": [
+       [["L", [0, 0], [80, 0]], ["L", [80, 0], [80, 50]], ["L", [80, 50], [0, 50]], ["L", [0, 50], [0, 0]]]
+     ],
+     "cotas": {"hasta": "alto"}},
+    {"tipo": "corte", "nombre": "Cortar-Extruir1", "plano": "Alzado",
+     "desde": 5, "hasta": 30, "pasante": false,
+     "perfiles": [
+       [["L", [5, 5], [75, 5]], ["L", [75, 5], [75, 45]], ["L", [75, 45], [5, 45]], ["L", [5, 45], [5, 5]]]
+     ],
+     "cotas": {"hasta": "alto"}},
+    {"tipo": "corte", "nombre": "Cortar-Extruir2", "plano": "Alzado",
+     "desde": 0, "hasta": 5, "pasante": true,
+     "perfiles": [[["C", [40, 25], 10]]]}
+  ],
+  "redondeos": [{"radio": 3, "puntos": [[0, 0, 15], [80, 0, 15], [80, 50, 15], [0, 50, 15]]}]
+}

@@ -5,3 +5,8 @@ _build/
 __pycache__/
 *.exe
 *.pyc
+
+# piezas generadas por el Taller FreeCAD (se rehacen con las recetas)
+*.FCBak
+freecad/recetas_prueba/*.FCStd
+freecad/pruebas_constructor/salida/
